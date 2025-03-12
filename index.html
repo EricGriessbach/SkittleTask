@@ -870,10 +870,7 @@
                 const angleValues = Array.from({length: 73}, (_, i) => -180 + i * 5); // 5° steps
                 const velocityValues = Array.from({length: 31}, (_, i) => 0.5 + i * 0.25); // 0.25 steps
                 const z = []; // 2D array for heatmap values
-                
-                // Show loading indicator
-                document.getElementById('contourPlot').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;"><p>Generating map, please wait...</p></div>';
-                
+
                 // Use setTimeout to avoid blocking the UI during calculation
                 setTimeout(() => {
                     // Populate z values
