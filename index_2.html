@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ball Trajectory Game</title>
+        <style>
+            :root {
+                --main-width: 60%; /* Main content width (60% of viewport) */
+                --max-width: 1200px; /* Maximum width for very large screens */
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 2vh 0;
+                margin: 0;
+                background-color: #f5f5f5;
+                width: 100%;
+                min-height: 100vh;
+                box-sizing: border-box;
+            }
+            
+            .content-container {
+                width: var(--main-width);
+                max-width: var(--max-width);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            h1 {
+                margin-bottom: 2vh;
+                text-align: center;
+            }
+            
+            .instructions {
+                width: 100%;
+                margin-bottom: 2vh;
+                line-height: 1.5;
+                text-align: justify;
+            }
+            
+            .control-panel {
+                width: 100%;
+                margin-bottom: 2vh;
+                display: flex;
+                align-items: center;
+                gap: 1vw;
+                padding: 1vh;
+                box-sizing: border-box;
+                background-color: #eee;
+                border-radius: 8px;
+            }
+            
+            .control-panel input[type="number"] {
+                width: clamp(60px, 10%, 100px);
+                padding: 0.5vh;
+                font-size: 1em;
+            }
+            
+            .control-panel button {
+                padding: 0.5vh 1.5vw;
+                margin-top: 0;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+            
+            .control-panel button:hover {
+                background-color: #45a049;
+            }
+            
+            #game-container {
+                position: relative;
+                width: 100%;
+                height: 70vh; /* 60% of viewport height */
+                border: 2px solid #333;
+                background-color: #fff;
+                overflow: hidden;
+                margin-bottom: 2vh;
+                aspect-ratio: 4 / 3; /* Maintain 4:3 aspect ratio */
+                max-height: 70vh;
+            }
+            
+            #gameCanvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            .feedback-panel {
+                width: 100%;
+                display: flex;
+                justify-content: space-around;
+                background-color: #f0f0f0;
+                padding: 1.5vh;
+                margin-bottom: 2vh;
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .feedback-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                min-width: 20%;
+            }
+            
+            .feedback-label {
+                font-weight: bold;
+                margin-bottom: 0.5vh;
+                color: #444;
+            }
+            
+            #angle-display, #velocity-display, #result-display {
+                font-size: 1.1em;
+                color: #0066cc;
+            }
+            
+            #result-display.hit {
+                color: #00aa00;
+            }
+            
+            #result-display.miss {
+                color: #cc0000;
+            }
+            
+            .parameter-section {
+                width: 100%;
+                height: 60vh;
+                margin-top: 3vh;
+            }
+            
+            #overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+                color: white;
+                font-size: 1.5rem;
+                text-align: center;
+                cursor: pointer;
+                z-index: 10;
+            }
+            
+            #overlay p {
+                margin: 1vh;
+                max-width: 80%;
+                font-size: clamp(1rem, 2.5vmin, 1.5rem);
+            }
+            
+            #overlay button {
+                margin-top: 2vh;
+                padding: 1.2vh 2vw;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: clamp(1rem, 2vmin, 1.3rem);
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+            
+            #overlay button:hover {
+                background-color: #45a049;
+            }
+            
+            /* Media queries for responsive design */
+            @media (max-width: 768px) {
+                :root {
+                    --main-width: 90%;
+                }
+                
+                #game-container {
+                    height: 50vh;
+                }
+                
+                .feedback-panel {
+                    flex-direction: column;
+                    align-items: center;
+                }
+                
+                .feedback-item {
+                    margin-bottom: 1vh;
+                }
+            }
+            </style>
+        </style>
+    </head>
+    <body>
+        <div class="content-container">
+            <h1>Ball Trajectory Game</h1>
+            <p class="instructions">
+                Move your mouse to control the player ball. Strike the blue ball to set it in motion. Your goal is to make the blue ball hit the red target ball while navigating around the central black pole. 
+                The blue ball is tethered to the pole by a spring, causing it to rotate around the pole after being struck. Use this orbital movement strategically to hit the red target!<br><br>
+                <strong>Controls:</strong>
+                <ul style="margin: 0.5em 0;">
+                    <li><strong>Scaling Factor</strong>: Adjusts the visual size of the game elements. Higher values make the objects bigger.</li>
+                    <li><strong>Velocity Scale</strong>: Adjusts how sensitive the game is to your mouse movements. Lower values make it easier to control ball speed.</li>
+                </ul>
+            </p>
+            <div class="control-panel">
+                <div class="control-panel">
+                    <label for="scaleInput">Scaling Factor:</label>
+                    <input type="number" id="scaleInput" min="50" max="300" step="10" value="150">
+                    <button id="applyScaleBtn">Apply</button>
+                    
+                    <label for="velocityScaleInput" style="margin-left: 20px;">Velocity Scale:</label>
+                    <input type="number" id="velocityScaleInput" min="1" max="20" step="1" value="6">
+                    <button id="applyVelScaleBtn">Apply</button>
+                </div>
+            </div>
+            <div id="game-container">
+                <canvas id="gameCanvas"></canvas>
+                <div id="overlay">
+                    <p>Click to activate sound and start the game</p>
+                    <p>Move the blue circle to hit the ball toward the target!</p>
+                    <button id="startButton">Start Game</button>
+                </div>
+            </div>
+            <div class="feedback-panel">
+                <div class="feedback-item">
+                    <span class="feedback-label">Angle:</span>
+                    <span id="angle-display">0°</span>
+                </div>
+                <div class="feedback-item">
+                    <span class="feedback-label">Velocity:</span>
+                    <span id="velocity-display">0 m/s</span>
+                </div>
+                <div class="feedback-item">
+                    <span class="feedback-label">Last Result:</span>
+                    <span id="result-display">-</span>
+                </div>
+            </div>
+            <div class="parameter-section" id="contourPlot"></div>
+        </div>
+        <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>    
+        
+        ><script>
+            // Canvas and drawing context
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const overlay = document.getElementById('overlay');
+            const startButton = document.getElementById('startButton');
+            const angleDisplay = document.getElementById('angle-display');
+            const velocityDisplay = document.getElementById('velocity-display');
+            const resultDisplay = document.getElementById('result-display');
+            // Physics constants
+            const m = 0.1;      // Mass of ball (kg)
+            const k = 1;        // Spring constant (N/m)
+            const tau = 20;     // Relaxation time
+            const w = 3.16;     // Angular frequency (rad/s)
+            const r_post = 0.25; // Radius of central post (m)
+
+            // Target position
+            const x_targ = 0.35;
+            const y_targ = 1;
+            const r_targ = 0.05; // Target radius (m)
+            const r_ball = 0.05; // Ball radius (m)
+            // Starting position
+            const x_0 = 0;
+            const y_0 = -1.5;
+            // Game state
+            let animationId = null;
+            let currentTime = 0;
+            let ballPositions = [];
+            let soundEvents = {};   
+            let minDistance = Infinity;
+            let minDistanceTime = 0;
+            let minDistancePosition = { x: 0, y: 0 };
+            let isAnimating = false;
+            let ballLaunched = false;
+            let drawBlueBall = true;
+            // Scale factors to convert physics coordinates to canvas pixels
+            let scaleFactor = 150; // Pixels per meter
+            let velocityScale = 6;
+            let offsetX = canvas.width / 2;
+            let offsetY = canvas.height / 2;
+
+            // Striker circle properties
+            const strikerRadius = 15;
+            let strikerX = 0;
+            let strikerY = 0;
+            let prevStrikerX = 0;
+            let prevStrikerY = 0;
+            let strikerVelocityX = 0;
+            let strikerVelocityY = 0;
+            const velocityUpdateInterval = 50; // ms
+            let lastVelocityUpdateTime = 0;
+
+            let lastFrameTime = 0;
+            const msPerFrame = 16.67; // ~60fps
+
+            // Animation and trajectory variables
+            let animationElapsedTime = 0;
+            let animationTotalDuration = 0;
+            let trajectoryParams = null;
+            let trajectoryOutcome = null;
+            let soundsPlayed = { hitPost: false, hitTarget: false };
+
+            // Global variables to track play history
+            let playHistory = [];
+            let plotData = null;
+            let contourLayout = null;
+            
+            // Game is paused until player clicks
+            let gameStarted = false;
+
+                // Handle click on the overlay or start button
+                function startGame() {
+            // Remove the overlay
+            overlay.style.display = 'none';
+            
+            // Setup canvas dimensions
+            setupCanvas();
+            
+            // Initialize audio
+            initAudio();
+            
+            // Reset feedback displays
+            if (angleDisplay) angleDisplay.textContent = "0°";
+            if (velocityDisplay) velocityDisplay.textContent = "0 m/s";
+            if (resultDisplay) {
+                resultDisplay.textContent = "-";
+                resultDisplay.className = "";
+            }
+            
+            // Set flag that game has started
+            gameStarted = true;
+            
+            // Start the game loop
+            initGame();
+            
+            // Generate the parameter map
+            generateParameterMapWithPlotly();
+        }
+                // Add click events to both overlay and button
+            overlay.addEventListener('click', startGame);
+            startButton.addEventListener('click', function(e) {
+                // Prevent the click from propagating to the overlay
+                e.stopPropagation();
+                startGame();
+            });
+
+            // Add this after canvas initialization but before game loop
+            function setupCanvas() {
+                // Get the actual dimensions of the game container
+                const container = document.getElementById('game-container');
+                const rect = container.getBoundingClientRect();
+                
+                // Set canvas dimensions to match container
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                
+                // Update offsets based on new canvas size
+                offsetX = canvas.width / 2;
+                offsetY = canvas.height / 2;
+                
+                console.log(`Canvas resized to ${canvas.width}x${canvas.height}`);
+            }
+            setupCanvas();
+
+            // Re-initialize on window resize
+            window.addEventListener('resize', function() {
+                setupCanvas();
+                
+                // Redraw the game
+                if (gameStarted) {
+                    drawGame();
+                }
+            });
+    
+            const SOUNDS = {
+                START: 'files/Start.wav',
+                FAIL: 'files/Fail.wav',
+                HIT: 'files/Hit.wav',
+                CHEER: 'files/Cheering.wav'
+            };
+
+            // Declare audioContext but don't initialize it yet
+            let audioContext;
+            const audioBuffers = {};
+            let audioLoaded = false;
+
+            // Initialize audio system after user interaction
+            function initAudio() {
+                // Only initialize once
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    loadAudioFiles();
+                    return true;
+                } else if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                return audioLoaded;
+            }
+
+            // Load all audio files
+            async function loadAudioFiles() {
+                try {
+                    const loadingPromises = Object.entries(SOUNDS).map(async ([key, path]) => {
+                        const response = await fetch(path);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        return [key, audioBuffer];
+                    });
+                    
+                    // Wait for all sounds to load
+                    const loadedBuffers = await Promise.all(loadingPromises);
+                    
+                    // Store each buffer in the audioBuffers object
+                    loadedBuffers.forEach(([key, buffer]) => {
+                        audioBuffers[key] = buffer;
+                    });
+                    
+                    audioLoaded = true;
+                    console.log("All audio files loaded successfully");
+                } catch (error) {
+                    console.error("Error loading audio files:", error);
+                }
+            }
+
+            // Function to play a specific sound with precise timing
+            function playSound(soundType, delayInMs = 0) {
+                // Make sure audio is initialized
+                if (!audioContext) {
+                    console.warn("Audio context not initialized. Call initAudio() first.");
+                    return;
+                }
+                
+                if (!audioLoaded || !audioBuffers[soundType]) {
+                    console.warn(`Sound "${soundType}" not loaded yet`);
+                    return;
+                }
+                
+                // Resume audio context if suspended (needed for some browsers)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                // Create source node
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffers[soundType];
+                
+                // Add gain control for volume adjustment
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 1.0; // Default volume (can be adjusted per sound)
+                
+                // Connect nodes: source -> gain -> destination
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Calculate when to start the sound
+                const startTime = audioContext.currentTime + (delayInMs / 1000);
+                source.start(startTime);
+                
+                return source; // Return source node in case we need to stop it later
+            }
+
+            // Sound trigger functions for different game events
+            function playStartSound(delay = 0) {
+                if (initAudio()) {
+                    return playSound('START', delay);
+                }
+            }
+
+            function playFailSound(delay = 0) {
+                if (initAudio()) {
+                    return playSound('FAIL', delay);
+                }
+            }
+
+            function playHitSound(delay = 0) {
+                if (initAudio()) {
+                    return playSound('HIT', delay);
+                }
+            }
+
+            function playCheeringSound(delay = 0) {
+                if (initAudio()) {
+                    return playSound('CHEER', delay);
+                }
+            }
+
+            document.addEventListener('click', function() {
+                initAudio(); // Initialize once on first click
+            }, { once: true }); // The 'once: true' option ensures this only happens once
+
+            document.getElementById('applyScaleBtn').addEventListener('click', function() {
+                const newScaleFactor = parseInt(document.getElementById('scaleInput').value);
+
+                // Validate input
+                if (newScaleFactor >= 1) {
+                    // Update the scale factor
+                    scaleFactor = newScaleFactor;
+
+                    console.log("Scale factor updated to:", scaleFactor);
+                } else {
+                    alert("Please enter a scaling factor greater than or equal to 1");
+                }
+            });
+
+            document.getElementById('applyVelScaleBtn').addEventListener('click', function() {
+                const newVelocityScale = parseInt(document.getElementById('velocityScaleInput').value);
+
+                // Validate input
+                if (newVelocityScale > 0) {
+                    // Update the velocity scale factor
+                    velocityScale = newVelocityScale;
+                    console.log("Velocity scale factor updated to:", velocityScale);
+                } else {
+                    alert("Please enter a velocity scale factor greater than 0");
+                }
+            });
+ 
+            
+            // Convert physics coordinates to canvas coordinates
+            function toCanvasX(x) {
+                return offsetX + x * scaleFactor;
+            }
+
+            function toCanvasY(y) {
+                return offsetY - y * scaleFactor; // Y-axis is inverted in canvas
+            }
+
+            // Mouse tracking
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const currentTime = Date.now();
+                
+                // Store previous position
+                prevStrikerX = strikerX;
+                prevStrikerY = strikerY;
+                
+                // Update current position
+                strikerX = e.clientX - rect.left;
+                strikerY = e.clientY - rect.top;
+                
+                // Update velocity at regular intervals
+                if (currentTime - lastVelocityUpdateTime > velocityUpdateInterval) {
+                    // Calculate velocity in pixels per second
+                    strikerVelocityX = (strikerX - prevStrikerX) * (1000 / velocityUpdateInterval);
+                    strikerVelocityY = (strikerY - prevStrikerY) * (1000 / velocityUpdateInterval);
+                    lastVelocityUpdateTime = currentTime;
+                }
+                
+                // Check for collision with ball if not yet launched
+                if (!ballLaunched && !isAnimating && drawBlueBall) {
+                    const ballCanvasX = toCanvasX(x_0);
+                    const ballCanvasY = toCanvasY(y_0);
+                    const distance = Math.sqrt(
+                        Math.pow(strikerX - ballCanvasX, 2) + 
+                        Math.pow(strikerY - ballCanvasY, 2)
+                    );
+                    if (distance <= strikerRadius + 8) { // 8 is ball radius
+                        // Convert striker velocity to physics velocity
+                        const physicsVelocityX = strikerVelocityX / scaleFactor;
+                        const physicsVelocityY = -strikerVelocityY / scaleFactor; // Invert Y direction
+                        
+                        // Scale down the velocity to reasonable values
+                        
+                        const v_x = physicsVelocityX * velocityScale;
+                        const v_y = physicsVelocityY * velocityScale;
+                        
+                        // Only launch if velocity is significant
+                        const velocityMagnitude = Math.sqrt(v_x * v_x + v_y * v_y);
+                        console.log("Velocity magnitude:", velocityMagnitude);
+                        if (velocityMagnitude > 0.1) {
+                            playStartSound();
+                            launchBall(v_x, v_y);
+                        }
+                    }
+                }
+            });
+
+            // Physics functions
+            // 1. Function to calculate exact position at any time t
+            function calculatePositionAtTime(t, params) {
+                const { A_x, A_y, p_x, p_y } = params;
+                
+                // Calculate position using the exact formula
+                const x = A_x * Math.cos(w * t + p_x) * Math.exp(-t / tau);
+                const y = A_y * Math.cos(w * t + p_y) * Math.exp(-t / tau);
+                
+                return { t, x, y };
+            }
+
+            // 2. Function to calculate trajectory parameters and analyze outcomes
+            function analyzeTrajectory(v_x, v_y) {
+                // Calculate energy in x and y directions
+                const E_x = 0.5 * (m * Math.pow(v_x, 2) + k * Math.pow(x_0, 2));
+                const E_y = 0.5 * (m * Math.pow(v_y, 2) + k * Math.pow(y_0, 2));
+                
+                // Calculate amplitudes
+                const A_x = Math.sqrt(2 * E_x / k);
+                const A_y = Math.sqrt(2 * E_y / k);
+                
+                // Calculate initial phases based on position AND velocity
+                const p_x = (x_0 === 0) ? 
+                    (v_x >= 0 ? -Math.PI/2 : Math.PI/2) : 
+                    Math.atan2(-v_x / w, x_0);
+                    
+                const p_y = (y_0 === 0) ? 
+                    (v_y >= 0 ? -Math.PI/2 : Math.PI/2) : 
+                    Math.atan2(-v_y / w, y_0);
+                
+                // Store parameters for the position calculator function
+                const params = { A_x, A_y, p_x, p_y };
+                
+                // Analyze trajectory outcomes using small timesteps
+                const maxTime = 2 * Math.PI / w; // Two complete oscillations
+                const analysisTimeStep = 0.0025; // Small timestep for accurate physics analysis
+                
+                let outcome = {
+                    hitPost: false,
+                    hitTarget: false,
+                    hitPostTime: -1,
+                    hitTargetTime: -1,
+                    minDistance: Infinity,
+                    minDistanceTime: 0,
+                    minDistancePosition: { x: 0, y: 0 },
+                    endTime: maxTime // Default end time if no collision occurs
+                };
+                
+                // Analyze the trajectory with small time steps
+                for (let t = 0; t <= maxTime; t += analysisTimeStep) {
+                    const pos = calculatePositionAtTime(t, params);
+                    
+                    // Check if ball hits the central post
+                    const distToPost = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+                    if (distToPost <= r_post && !outcome.hitPost) {
+                        outcome.hitPost = true;
+                        outcome.hitPostTime = t;
+                        outcome.endTime = t; // End animation at post collision
+                        break; // Stop trajectory calculation if ball hits post
+                    }
+                    
+                    // Calculate distance to target
+                    const dist = Math.sqrt(Math.pow(pos.x - x_targ, 2) + Math.pow(pos.y - y_targ, 2));
+                    
+                    // Track minimum distance
+                    if (dist < outcome.minDistance) {
+                        outcome.minDistance = dist;
+                        outcome.minDistanceTime = t;
+                        outcome.minDistancePosition = { x: pos.x, y: pos.y };
+                    }
+                    
+                    // Check if we hit the target (within 0.1 distance)
+                    if (dist < 0.1 && !outcome.hitTarget) {
+                        outcome.hitTarget = true;
+                        outcome.hitTargetTime = t;
+                        outcome.endTime = t; // End animation when we hit target
+                        break;
+                    }
+                    
+                    // Optional: Stop if the motion amplitude becomes very small
+                    const amplitude = Math.sqrt(pos.x*pos.x + pos.y*pos.y);
+                    if (t > 1.0 && amplitude < 0.05) {
+                        outcome.endTime = t;
+                        break;
+                    }
+                }
+                
+                // If ball hit the post, set minimum distance to a high default value
+                if (outcome.hitPost) {
+                    outcome.minDistance = 0.8; // Default high value (m)
+                    outcome.minDistanceTime = 0;
+                    outcome.minDistancePosition = { x: 0, y: 0 };
+                }
+                
+                return { params, outcome };
+            }
+
+
+            // Draw game elements
+            function drawGame(timestamp) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw central post
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(0), toCanvasY(0), r_post * scaleFactor, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Draw target
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(x_targ), toCanvasY(y_targ), r_targ*scaleFactor, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Draw starting position ball (if not launched)
+                if (!ballLaunched && !isAnimating && drawBlueBall) {
+                    ctx.fillStyle = 'blue';
+                    ctx.beginPath();
+                    ctx.arc(toCanvasX(x_0), toCanvasY(y_0), r_ball*scaleFactor, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                
+                // Draw ball during animation using exact position calculation
+                if (isAnimating && trajectoryParams) {
+                    // Calculate current time in seconds
+                    const currentTime = Math.min(
+                        animationElapsedTime / 1000, 
+                        trajectoryOutcome.endTime
+                    );
+                    
+                    // Calculate exact position at current time
+                    const ballPos = calculatePositionAtTime(currentTime, trajectoryParams);
+                    
+                    // Draw the ball at calculated position
+                    ctx.fillStyle = 'blue';
+                    ctx.beginPath();
+                    ctx.arc(toCanvasX(ballPos.x), toCanvasY(ballPos.y), r_ball*scaleFactor, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                
+                // Draw striker circle (user-controlled)
+                ctx.fillStyle = 'rgba(100, 100, 255, 0.7)';
+                ctx.beginPath();
+                ctx.arc(strikerX, strikerY, strikerRadius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(50, 50, 200, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                
+                // Display velocity information
+                const physicsVelocityX = strikerVelocityX * 0.01 / scaleFactor;
+                const physicsVelocityY = -strikerVelocityY * 0.01 / scaleFactor;
+                const physicsVelocityMagnitude = Math.sqrt(
+                    physicsVelocityX * physicsVelocityX + 
+                    physicsVelocityY * physicsVelocityY
+                );
+                const angleDeg = Math.atan2(-physicsVelocityY, physicsVelocityX) * 180 / Math.PI;
+                
+                // Optional: Display velocity vector or other information
+            }
+
+            function showWarningMessage(message, duration = 2000) {
+                // Create a warning message overlay
+                const warningOverlay = document.createElement('div');
+                warningOverlay.style.position = 'absolute';
+                warningOverlay.style.top = '50%';
+                warningOverlay.style.left = '50%';
+                warningOverlay.style.transform = 'translate(-50%, -50%)';
+                warningOverlay.style.background = 'rgba(255, 0, 0, 0.8)';
+                warningOverlay.style.color = 'white';
+                warningOverlay.style.padding = '20px';
+                warningOverlay.style.borderRadius = '10px';
+                warningOverlay.style.textAlign = 'center';
+                warningOverlay.style.fontSize = '1.5rem';
+                warningOverlay.style.zIndex = '100';
+                warningOverlay.style.maxWidth = '80%';
+                warningOverlay.innerHTML = message;
+                
+                // Add to game container
+                document.getElementById('game-container').appendChild(warningOverlay);
+                
+                // Remove after duration
+                setTimeout(() => {
+                    if (warningOverlay.parentNode) {
+                        warningOverlay.parentNode.removeChild(warningOverlay);
+                    }
+                }, duration);
+            }
+
+            function launchBall(v_x, v_y) {
+                // Reset variables
+                animationElapsedTime = 0;
+                ballLaunched = true;
+                soundsPlayed = { hitPost: false, hitTarget: false };
+                
+                // Calculate angle and velocity for display
+                const velocity = Math.sqrt(v_x * v_x + v_y * v_y);
+                const angleDeg = Math.atan2(v_y, v_x) * 180 / Math.PI;
+                
+                console.log("Launching with velocity:", v_x, v_y, "Magnitude:", velocity);
+                
+                // Check if velocity is too high (> 10)
+                if (velocity > 10) {
+                    // Reset ball state
+                    ballLaunched = false;
+                    isAnimating = false;
+                    drawBlueBall = true;
+                    
+                    // Show warning message
+                    showWarningMessage(`
+                        <strong>Ball velocity too high!</strong><br>
+                        Velocity: ${velocity.toFixed(2)} m/s<br><br>
+                        Try to play slower or increase the scaling factor.
+                    `, 3000);
+                    
+                    // Update angle and velocity displays with the excessive values
+                    if (angleDisplay && velocityDisplay) {
+                        angleDisplay.textContent = `${angleDeg.toFixed(1)}°`;
+                        velocityDisplay.textContent = `${velocity.toFixed(2)} m/s (too high)`;
+                    }
+                    
+                    // Update result display
+                    if (resultDisplay) {
+                        resultDisplay.textContent = "Aborted - Too Fast";
+                        resultDisplay.className = "miss";
+                    }
+                    
+                    // Play fail sound
+                    playFailSound();
+                    
+                    return; // Exit function early
+                }
+                
+                // Update angle and velocity displays with the launch values
+                if (angleDisplay && velocityDisplay) {
+                    angleDisplay.textContent = `${angleDeg.toFixed(1)}°`;
+                    velocityDisplay.textContent = `${velocity.toFixed(2)} m/s`;
+                }
+                
+                // Analyze the trajectory and get parameters for the position calculator
+                const result = analyzeTrajectory(v_x, v_y);
+                trajectoryParams = result.params;
+                trajectoryOutcome = result.outcome;
+                
+                // Set total animation duration (in seconds)
+                animationTotalDuration = trajectoryOutcome.endTime;
+                
+                // Add marker to contour plot at the end of animation
+                setTimeout(() => {
+                    addPlayMarkerToPlot(v_x, v_y);
+                    
+                    // Update the result display after animation completes
+                    if (resultDisplay) {
+                        if (trajectoryOutcome.hitTarget) {
+                            resultDisplay.textContent = "HIT!";
+                            resultDisplay.className = "hit";
+                        } else if (trajectoryOutcome.hitPost) {
+                            resultDisplay.textContent = "Hit Post";
+                            resultDisplay.className = "miss";
+                        } else {
+                            resultDisplay.textContent = `Missed by ${trajectoryOutcome.minDistance.toFixed(2)}m`;
+                            resultDisplay.className = "miss";
+                        }
+                    }
+                }, animationTotalDuration * 1000 + 100); // Wait for animation to complete
+                
+                // Start animation
+                isAnimating = true;
+            }
+
+            // Initialize game loop
+            function initGame() {
+                // Start the game loop (which will check gameStarted flag)
+                gameLoop();
+            }
+
+            function generateParameterMapWithPlotly() {
+                // Generate data with higher resolution for angles and velocities
+                const angleValues = Array.from({length: 73}, (_, i) => -180 + i * 5); // 5° steps
+                const velocityValues = Array.from({length: 31}, (_, i) => 0.5 + i * 0.25); // 0.25 steps
+                const z = []; // 2D array for heatmap values
+                
+                // Show loading indicator
+                document.getElementById('contourPlot').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;"><p>Generating map, please wait...</p></div>';
+                
+                // Use setTimeout to avoid blocking the UI during calculation
+                setTimeout(() => {
+                    // Populate z values
+                    for (let v = 0; v < velocityValues.length; v++) {
+                        const row = [];
+                        for (let a = 0; a < angleValues.length; a++) {
+                            const velocity = velocityValues[v];
+                            const angle = angleValues[a];
+                            const angleRad = angle * Math.PI / 180;
+                            const v_x = velocity * Math.cos(angleRad);
+                            const v_y = velocity * Math.sin(angleRad);
+                            
+                            // Analyze the trajectory to get min distance
+                            const result = analyzeTrajectory(v_x, v_y);
+                            row.push(result.outcome.minDistance);
+                        }
+                        z.push(row);
+                    }
+                    
+                    // Create contour plot data
+                    const data_contour = [{
+                        z: z,
+                        x: angleValues,
+                        y: velocityValues,
+                        type: 'heatmap',
+                        colorscale: [
+                            [0, 'rgb(255, 255, 255)'],   // White for closest points
+                            [0.1, 'rgb(220, 220, 220)'], 
+                            [0.2, 'rgb(190, 190, 190)'],
+                            [0.3, 'rgb(160, 160, 160)'],
+                            [0.4, 'rgb(130, 130, 130)'],
+                            [0.6, 'rgb(100, 100, 100)'],
+                            [0.8, 'rgb(70, 70, 70)'],
+                            [1.0, 'rgb(0, 0, 0)']         // Black for furthest points
+                        ],
+                        zmin: 0,
+                        zmax: 0.8,
+                        zauto: false,
+                        colorbar: {
+                            title: {
+                                text: 'Distance (m)',
+                                side: 'right'
+                            },
+                            tickvals: [0, 0.1, 0.2, 0.4, 0.6, 0.8],
+                            ticktext: ['0', '0.1', '0.2', '0.4', '0.6', '0.8']
+                        }
+                    },
+                    // Second trace is just the 0.1 contour line
+                    {
+                        z: z,
+                        x: angleValues,
+                        y: velocityValues,
+                        type: 'contour',
+                        contours: {
+                            coloring: 'lines',
+                            showlabels: false,
+                            start: 0.1,
+                            end: 0.1,
+                            size: 0.00001
+                        },
+                        line: {
+                            width: 2,
+                            color: 'red',
+                            dash: 'solid'
+                        },
+                        showscale: false,
+                        hoverinfo: 'none',
+                        colorscale: [[0, 'red'], [1, 'red']]
+                    },
+                    // Third trace is for play history dots
+                    {
+                        x: [],
+                        y: [],
+                        mode: 'markers',
+                        type: 'scatter',
+                        marker: {
+                            color: 'rgba(255, 0, 0, 0.8)',
+                            size: 8,
+                            symbol: 'circle',
+                            line: {
+                                color: 'white',
+                                width: 1
+                            }
+                        },
+                        name: 'Your Plays'
+                    }];
+
+                    // Improved layout with more explicit axis titles and margins
+                    const layout_contour = {
+                        title: {
+                            text: 'Distance Map to Target',
+                            font: {
+                                size: 20
+                            }
+                        },
+                        xaxis: {
+                            title: {
+                                text: 'Angle (degrees)',
+                                font: {
+                                    size: 16
+                                },
+                                standoff: 10 // Adds space between title and axis
+                            },
+                            range: [-180, 180],
+                            dtick: 30
+                        },
+                        yaxis: {
+                            title: {
+                                text: 'Velocity (m/s)',
+                                font: {
+                                    size: 16
+                                },
+                                standoff: 10  // Adds space between title and axis
+                            },
+                            range: [0, 8.1], // Limit to 10 m/s as per velocity limit
+                            dtick: 2
+                        },
+                        annotations: [{
+                            x: 1,
+                            y: 1.1,
+                            xref: 'paper',
+                            yref: 'paper',
+                            text: 'Lighter colors indicate closer to target',
+                            showarrow: false
+                        }],
+                        autosize: true,
+                        margin: {
+                            l: 80,  // Increased left margin for y-axis title
+                            r: 80,  // Increased right margin for colorbar title
+                            b: 80,  // Increased bottom margin for x-axis title
+                            t: 100, // Increased top margin for plot title
+                            pad: 5  // Padding between plot and axes
+                        }
+                    };
+
+                    // Save the data and layout for later updates
+                    plotData = data_contour;
+                    contourLayout = layout_contour;
+
+                    // Render the plot with improved config
+                    Plotly.newPlot('contourPlot', data_contour, layout_contour, {
+                        responsive: true,
+                        displayModeBar: false,
+                        staticPlot: false,
+                        showLink: false
+                    });
+                }, 100);
+            }
+
+        // Function to add a play marker to the contour plot
+        function addPlayMarkerToPlot(v_x, v_y) {
+            // Calculate angle and velocity from velocity components
+            const velocity = Math.sqrt(v_x * v_x + v_y * v_y);
+            const angleDeg = Math.atan2(v_y, v_x) * 180 / Math.PI; // Convert radians to degrees
+            
+            // Add to play history
+            playHistory.push({ angle: angleDeg, velocity: velocity });
+            
+            // Extract all angles and velocities from play history
+            const angles = playHistory.map(play => play.angle);
+            const velocities = playHistory.map(play => play.velocity);
+            
+            // Update the scatter trace (index 2 in the data array)
+            Plotly.restyle('contourPlot', {
+                x: [angles],
+                y: [velocities],
+                'marker.size': 8,
+                'marker.color': 'rgba(255, 0, 0, 0.8)'
+            }, 2);
+        }
+
+                   // Main game loop
+                   function gameLoop(timestamp) {
+                // Initialize lastFrameTime on first frame
+                if (!lastFrameTime) lastFrameTime = timestamp;
+                const deltaTime = timestamp - lastFrameTime;
+                lastFrameTime = timestamp;
+                
+                if (gameStarted) {
+                    if (isAnimating && trajectoryParams) {
+                        // Update animation time
+                        animationElapsedTime += deltaTime;
+                        
+                        // Calculate current animation time in seconds
+                        const currentAnimationTime = Math.min(
+                            animationElapsedTime / 1000, 
+                            trajectoryOutcome.endTime
+                        );
+                        
+                        // Calculate normalized progress (0 to 1)
+                        const progress = currentAnimationTime / trajectoryOutcome.endTime;
+                        
+                        // Play sound events at appropriate times
+                        if (!soundsPlayed.hitPost && trajectoryOutcome.hitPost && 
+                            currentAnimationTime >= trajectoryOutcome.hitPostTime - 0.05) {
+                            playFailSound();
+                            soundsPlayed.hitPost = true;
+                        }
+                        
+                        if (!soundsPlayed.hitTarget && trajectoryOutcome.hitTarget && 
+                            currentAnimationTime >= trajectoryOutcome.hitTargetTime) {
+                            playHitSound();
+                            soundsPlayed.hitTarget = true;
+                        }
+                        
+                        // Check if animation is complete
+                        if (currentAnimationTime >= trajectoryOutcome.endTime) {
+                            // Animation just finished
+                            isAnimating = false;
+                            ballLaunched = false;
+                            
+                            // Hide blue ball for 1 second
+                            drawBlueBall = false;
+                            setTimeout(() => {
+                                drawBlueBall = true;
+                            }, 1000);
+                        }
+                    }
+                    
+                    // Always draw the game on each frame
+                    drawGame(timestamp);
+                } else {
+                    // If game hasn't started, just draw a basic scene
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                // Continue the game loop regardless of game state
+                requestAnimationFrame(gameLoop);
+            }
+
+
+
+            // Start the game
+            gameLoop();
+
+    </script>
+</body>
+</html>
